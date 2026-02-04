@@ -4,6 +4,9 @@ import PageShell from "@/components/PageShell";
 import { prisma } from "@/lib/db";
 import { tagsToArray } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function statusJa(s: string) {
   switch (s) {
     case "DRAFT":
