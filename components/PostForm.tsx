@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PostPurpose, PostStatus } from "@/generated/prisma";
+import type { PostPurpose, PostStatus } from "@prisma/client";
 import { labels } from "@/lib/labels";
 
 interface Initial {
@@ -20,6 +20,16 @@ interface Initial {
 interface PostFormProps {
   mode: "create" | "edit";
   initial?: Initial;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getErrorMessage(data: unknown, fallback: string): string {
+  if (!isRecord(data)) return fallback;
+  const err = data.error;
+  return typeof err === "string" ? err : fallback;
 }
 
 function toIsoOrNull(datetimeLocal: string): string | null {
@@ -56,15 +66,19 @@ function purposeLabel(p: PostPurpose) {
   }
 }
 
+function parseCreatedId(data: unknown): string | null {
+  if (!isRecord(data)) return null;
+  const id = data.id;
+  return typeof id === "string" ? id : null;
+}
+
 export default function PostForm({ mode, initial }: PostFormProps) {
   const router = useRouter();
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
   const [status, setStatus] = useState<PostStatus>(initial?.status ?? "DRAFT");
-  const [purpose, setPurpose] = useState<PostPurpose>(
-    initial?.purpose ?? "OTHER",
-  );
+  const [purpose, setPurpose] = useState<PostPurpose>(initial?.purpose ?? "OTHER");
   const [tags, setTags] = useState(initial?.tags ?? "");
   const [scheduledAt, setScheduledAt] = useState(initial?.scheduledAt ?? "");
   const [postedAt, setPostedAt] = useState(initial?.postedAt ?? "");
@@ -105,18 +119,14 @@ export default function PostForm({ mode, initial }: PostFormProps) {
 
         if (!res.ok) {
           const data: unknown = await res.json().catch(() => null);
-          const msg =
-            typeof data === "object" &&
-            data !== null &&
-            "error" in data &&
-            typeof (data as { error?: unknown }).error === "string"
-              ? (data as { error: string }).error
-              : "作成に失敗しました。";
-          throw new Error(msg);
+          throw new Error(getErrorMessage(data, "作成に失敗しました。"));
         }
 
-        const data = (await res.json()) as { id: string };
-        router.push(`/posts/${data.id}`);
+        const data: unknown = await res.json().catch(() => null);
+        const id = parseCreatedId(data);
+        if (!id) throw new Error("作成に失敗しました（IDが取得できません）。");
+
+        router.push(`/posts/${id}`);
         router.refresh();
         return;
       }
@@ -131,14 +141,7 @@ export default function PostForm({ mode, initial }: PostFormProps) {
 
       if (!res.ok) {
         const data: unknown = await res.json().catch(() => null);
-        const msg =
-          typeof data === "object" &&
-          data !== null &&
-          "error" in data &&
-          typeof (data as { error?: unknown }).error === "string"
-            ? (data as { error: string }).error
-            : "更新に失敗しました。";
-        throw new Error(msg);
+        throw new Error(getErrorMessage(data, "更新に失敗しました。"));
       }
 
       router.refresh();
