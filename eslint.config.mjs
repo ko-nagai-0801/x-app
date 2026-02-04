@@ -1,18 +1,50 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+// eslint.config.mjs
+import js from "@eslint/js";
+import next from "@next/eslint-plugin-next";
+import tseslint from "typescript-eslint";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
+export default [
+  // ✅ 生成物は lint 対象外（Prisma / wasm / build）
+  {
+    ignores: [
+      ".next/**",
+      "node_modules/**",
+      "generated/**", // Prisma output
+      "**/*.wasm",
+      "**/*wasm-base64.js",
+    ],
+  },
 
-export default eslintConfig;
+  // JS ルール（eslint.config.mjs / postcss.config.mjs などはここで普通に扱う）
+  js.configs.recommended,
+
+  // ✅ TypeScript (typed) は TS/TSX のみに限定
+  ...tseslint.configs.recommendedTypeChecked.map((c) => ({
+    ...c,
+    files: ["**/*.ts", "**/*.tsx"],
+  })),
+  ...tseslint.configs.stylisticTypeChecked.map((c) => ({
+    ...c,
+    files: ["**/*.ts", "**/*.tsx"],
+  })),
+
+  // ✅ typed lint の project 設定も TS/TSX のみに限定
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+
+  // Next.js
+  {
+    plugins: { "@next/next": next },
+    rules: {
+      ...next.configs.recommended.rules,
+      ...next.configs["core-web-vitals"].rules,
+    },
+  },
+];

@@ -1,0 +1,66 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  POSTED
+}
+
+enum PostPurpose {
+  ANNOUNCE
+  LEARN
+  DAILY
+  RECAP
+  OTHER
+}
+
+model Post {
+  id          String      @id @default(cuid())
+  title       String?
+  body        String
+  status      PostStatus  @default(DRAFT)
+  purpose     PostPurpose @default(OTHER)
+  tags        String      @default("") // CSV: "tag1,tag2"
+  scheduledAt DateTime?
+  postedAt    DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  metrics     Metric[]
+}
+
+model Template {
+  id        String   @id @default(cuid())
+  name      String
+  body      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Metric {
+  id            String   @id @default(cuid())
+  postId        String
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  impressions   Int?
+  likes         Int?
+  reposts       Int?
+  replies       Int?
+  profileClicks Int?
+  linkClicks    Int?
+
+  recordedAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([postId])
+}
